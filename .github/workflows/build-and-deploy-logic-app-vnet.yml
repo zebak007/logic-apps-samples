@@ -1,0 +1,49 @@
+name: build-and-deploy-logic-app-vnet
+
+on:
+  workflow_dispatch:
+    inputs:
+      LogicAppFEName:
+        description: 'Name of the FE Logic App'
+        required: true
+
+# CONFIGURATION
+# For help, go to https://github.com/Azure/Actions
+#
+# 1. Paste the RBAC json into the following secret in your repository:
+#   AZURE_RBAC_CREDENTIALS
+#
+# 2. Change these variables for your configuration:
+env:
+  AZURE_LOGICAPPFE_PACKAGE_PATH: 'LAv2-vNet\src\Frontend'
+
+jobs:
+  build-and-deploy:
+    runs-on: windows-latest
+    steps:
+    - name: 'Checkout GitHub Action'
+      uses: actions/checkout@master
+
+    - name: 'Login via Azure CLI'
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_MSFT_CREDENTIALS }}
+
+    - name: Setup DotNet ${{ env.DOTNET_VERSION }} Environment
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: 'build logicapp-fe'
+      shell: pwsh
+      run: |
+        pushd './${{ env.AZURE_LOGICAPPFE_PACKAGE_PATH }}'
+        dotnet build --configuration Release --output ./output
+        popd
+
+    - name: 'deploy logic-app-fe'
+      uses: Azure/functions-action@v1
+      id: logic-app-fe
+      with:
+        app-name: ${{github.event.inputs.LogicAppFEName}}
+        package: '${{ env.AZURE_LOGICAPPFE_PACKAGE_PATH }}/output'
